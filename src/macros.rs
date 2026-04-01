@@ -3,7 +3,7 @@
 macro_rules! t {
     // Abstraction has the lowest precedence and must appear at top level
     (fun $var:ident => $($body:tt)+) => {
-        crate::term::Term::Abs {
+        programming_language::term::Term::Abs {
             var: stringify!($var).to_string(),
             body: Box::new(t!($($body)+)),
         }
