@@ -6,6 +6,7 @@ pub mod module;
 pub mod parser;
 pub mod step;
 pub mod term;
+pub mod types;
 
 use nom::combinator::eof;
 pub use term::Term;
