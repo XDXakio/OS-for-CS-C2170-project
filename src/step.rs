@@ -1,4 +1,4 @@
-use crate::{t, term::Term};
+use crate::{term::Term};
 
 use Term::*;
 
