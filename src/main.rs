@@ -1,12 +1,4 @@
-pub mod alpha;
-pub mod ast;
-pub mod display;
-pub mod macros;
-pub mod module;
-pub mod parser;
-pub mod step;
-pub mod term;
-pub mod types;
+use::programming_language::*;
 
 use nom::combinator::eof;
 pub use term::Term;
