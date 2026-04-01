@@ -20,3 +20,87 @@ pub enum TypeError {
     ExpectedFunction(Type),
 }
 
+use Type::*;
+use TypeError::*;
+
+pub fn type_of(term: &Term, ctx: &mut Context) -> Result<Type, TypeError> {
+    match term {
+        Term::Var(x) => {
+            ctx.get(x)
+                .cloned()
+                .ok_or(UnboundVariable(x.clone()))
+        }
+
+        Term::Abs { var, body } => {
+            let param_type = Type::Nat; //Temporary
+            ctx.insert(var.clone(), param_type.clone());
+
+            let body_type = type_of(body, ctx)?;
+
+            ctx.remove(var);
+
+            Ok(Func(Box::new(param_type), Box::new(body_type)))
+        }
+
+        Term::App(t1,t2 ) => {
+            let  t1_type = type_of(t1, ctx)?;
+            let  t2_type = type_of(t2, ctx)?;
+
+            match t1_type {
+                Func(param,ret ) => {
+                    if *param == t2_type {
+                        Ok(*ret)
+                    } else {
+                        Err(Mismatch(*param, t2_type))
+                    }
+                }
+                other => Err(ExpectedFunction(other))
+            }
+        }
+
+        Term::True | Term::False => Ok(Bool),
+
+        Term::Ite { cond, if_true, if_false } => {
+            let cond_type = type_of(cond, ctx)?;
+            if cond_type != Bool {
+                return Err(ExpectedBool(cond_type));
+            }
+
+            let t1 = type_of(if_true, ctx)?;
+            let t2 = type_of(if_false, ctx)?;
+
+            if t1 == t2 {
+                Ok(t1)
+            } else {
+                Err(Mismatch(t1, t2))
+            }
+        }
+
+        Term::Zero => Ok(Nat),
+
+        Term::Succ(t) => {
+            let inner = type_of(t, ctx)?;
+            if inner == Nat {
+                Ok(Nat)
+            } else {
+                Err(ExpectedNat(inner))
+            }
+        }
+
+        Term::Rec { scrutinee, if_zero, if_succ } => {
+            let s_type = type_of(scrutinee, ctx)?;
+            if s_type != Nat {
+                return Err(ExpectedNat(s_type));
+            }
+
+            let z_type = type_of(if_zero, ctx)?;
+            let s_case_type = type_of(if_succ, ctx)?;
+
+            if z_type == s_case_type {
+                Ok(z_type)
+            } else {
+                Err(Mismatch(z_type, s_case_type))
+            }
+        }
+    }
+}
