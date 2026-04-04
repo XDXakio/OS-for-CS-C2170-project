@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use crate::ast::decode_nat;
 
 #[derive(Debug, Clone)]
 /// A term of the untyped lambda calculus with booleans
@@ -34,6 +35,10 @@ pub enum Term {
         if_zero: Box<Term>,
         if_succ: Box<Term>,
     },
+
+    Add(Box<Term>, Box<Term>),
+    Sub(Box<Term>, Box<Term>),
+    Mul(Box<Term>, Box<Term>),
 }
 
 /// Return a variable name which is not in `vars` and starts with `base`
@@ -69,7 +74,7 @@ impl Term {
                 Ite { cond, if_true, if_false } => {
                     go(cond, out); go(if_true, out); go(if_false, out);
                 }
-                True | False | Zero => {}
+                True | False | Zero | Add(_, _) | Sub(_ , _) | Mul(_ , _) => {}
                 Succ(t) => go(t, out),
                 Rec { scrutinee, if_zero, if_succ } => {
                     go(scrutinee, out); go(if_zero, out); go(if_succ, out);
@@ -97,7 +102,7 @@ impl Term {
             Rec { scrutinee, if_zero, if_succ } => {
                 scrutinee.rename(var, new); if_zero.rename(var, new); if_succ.rename(var, new);
             }
-            True | False | Zero => {}
+            True | False | Zero | Add(_, _) | Sub(_ , _) | Mul(_ , _) => {}
         }
     }
 
@@ -142,6 +147,75 @@ impl Term {
             True => True,
             False => False,
             Zero => Zero,
+            Add(a, b) => Add(
+                Box::new(a.subst(var, value)),
+                Box::new(b.subst(var, value))
+            ),
+
+            Sub(a, b) => Sub(
+                Box::new(a.subst(var, value)),
+                Box::new(b.subst(var, value))
+            ),
+
+            Mul(a, b) => Mul(
+                Box::new(a.subst(var, value)),
+                Box::new(b.subst(var, value))
+            ),
+        }
+    }
+
+    pub fn arith(&self) -> Option<Self> {
+        match self {
+            Term::Add(t1, t2) => {
+                // Step arguments first
+                if let Some(t1_step) = t1.step() {
+                    return Some(Add(Box::new(t1_step), t2.clone()));
+                }
+                if let Some(t2_step) = t2.step() {
+                    return Some(Add(t1.clone(), Box::new(t2_step)));
+                }
+
+                // Then compute
+                if let (Some(n1), Some(n2)) = (decode_nat(t1), decode_nat(t2)) {
+                    Some(nat(n1 + n2))
+                } else {
+                    None
+                }
+            }
+
+            Term::Sub(t1, t2) => {
+                // Step arguments first
+                if let Some(t1_step) = t1.step() {
+                    return Some(Sub(Box::new(t1_step), t2.clone()));
+                }
+                if let Some(t2_step) = t2.step() {
+                    return Some(Sub(t1.clone(), Box::new(t2_step)));
+                }
+
+                // Then compute
+                if let (Some(n1), Some(n2)) = (decode_nat(t1), decode_nat(t2)) {
+                    Some(nat(n1.saturating_sub(n2)))
+                } else {
+                    None
+                }
+            }
+
+            Term::Mul(t1, t2) => {
+                if let Some(t1_step) = t1.step() {
+                    return Some(Mul(Box::new(t1_step), t2.clone()));
+                }
+                if let Some(t2_step) = t2.step() {
+                    return Some(Mul(t1.clone(), Box::new(t2_step)));
+                }
+
+                if let (Some(n1), Some(n2)) = (decode_nat(t1), decode_nat(t2)) {
+                    Some(nat(n1 * n2))
+                } else {
+                    None
+                }
+            }
+
+            _ => None,
         }
     }
 }
