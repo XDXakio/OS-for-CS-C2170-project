@@ -63,6 +63,9 @@ impl Display for Term {
                 let aux = t!(rec !(*scrutinee.clone()) !(*if_zero.clone()) !(*if_succ.clone()));
                 write!(f, "{aux}")
             }
+            Add(a, b) => write!(f, "{a} + {b}"),
+            Sub(a, b) => write!(f, "{a} - {b}"),
+            Mul(a, b) => write!(f, "{a} * {b}"),
         }
     }
 }
