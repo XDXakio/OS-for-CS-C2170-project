@@ -128,84 +128,6 @@ pub fn pred() -> Term {
     }
 }
 
-pub fn plus() -> Term {
-    let n = Term::Var("n".to_string());
-    let m = Term::Var("m".to_string());
-
-    Term::Abs {
-        var: "n".to_string(),
-        ty: Type::Nat,
-        body: Box::new(Term::Abs {
-            var: "m".to_string(),
-            ty: Type::Nat,
-            body: Box::new(Term::Rec {
-                scrutinee: Box::new(n),
-                if_zero: Box::new(m),
-                if_succ: Box::new(Term::Abs {
-                    var: "pred".to_string(),
-                    ty: Type::Nat,
-                    body: Box::new(Term::Abs {
-                        var: "ih".to_string(),
-                        ty: Type::Nat,
-                        body: Box::new(Term::Succ(Box::new(Term::Var("ih".to_string())))),
-                    }),
-                }),
-            }),
-        }),
-    }
-}
-
-pub fn mult() -> Term {
-    Term::Abs {
-        var: "n".to_string(),
-        ty: Type::Nat,
-        body: Box::new(Term::Abs {
-            var: "m".to_string(),
-            ty: Type::Nat,
-            body: Box::new(Term::Rec {
-                scrutinee: Box::new(Term::Var("n".to_string())),
-                if_zero: Box::new(Term::Zero),
-                if_succ: Box::new(Term::Abs {
-                    var: "pred".to_string(),
-                    ty: Type::Nat,
-                    body: Box::new(Term::Abs {
-                        var: "ih".to_string(),
-                        ty: Type::Nat,
-                        body: Box::new(Term::App(
-                            Box::new(Term::App(Box::new(plus()), Box::new(Term::Var("m".to_string())))),
-                            Box::new(Term::Var("ih".to_string())),
-                        )),
-                    }),
-                }),
-            }),
-        }),
-    }
-}
-
-pub fn minus() -> Term {
-    Term::Abs {
-        var: "n".to_string(),
-        ty: Type::Nat,
-        body: Box::new(Term::Abs {
-            var: "m".to_string(),
-            ty: Type::Nat,
-            body: Box::new(Term::Rec {
-                scrutinee: Box::new(Term::Var("m".to_string())),
-                if_zero: Box::new(Term::Var("n".to_string())),
-                if_succ: Box::new(Term::Abs {
-                    var: "pred".to_string(),
-                    ty: Type::Nat,
-                    body: Box::new(Term::Abs {
-                        var: "ih".to_string(),
-                        ty: Type::Nat,
-                        body: Box::new(Term::Var("ih".to_string())),
-                    }),
-                }),
-            }),
-        }),
-    }
-}
-
 pub fn is_zero() -> Term {
     Term::Abs {
         var: "n".to_string(),
@@ -234,9 +156,22 @@ pub fn eq() -> Term {
             var: "m".to_string(),
             ty: Type::Nat,
             body: Box::new(Term::App(
-                Box::new(Term::App(Box::new(and()), 
-                    Box::new(Term::App(Box::new(is_zero()), Box::new(Term::App(Box::new(minus()), Box::new(Term::Var("n".to_string())))))))),
-                Box::new(Term::App(Box::new(is_zero()), Box::new(Term::App(Box::new(minus()), Box::new(Term::Var("m".to_string()))))))
+                Box::new(Term::App(Box::new(and()),
+                    Box::new(Term::App(
+                        Box::new(is_zero()),
+                        Box::new(Term::Sub(
+                            Box::new(Term::Var("n".to_string())),
+                            Box::new(Term::Var("m".to_string())),
+                        )),
+                    ))
+                )),
+                Box::new(Term::App(
+                    Box::new(is_zero()),
+                    Box::new(Term::Sub(
+                        Box::new(Term::Var("m".to_string())),
+                        Box::new(Term::Var("n".to_string())),
+                    )),
+                )),
             )),
         }),
     }
@@ -251,7 +186,10 @@ pub fn neq() -> Term {
             ty: Type::Nat,
             body: Box::new(Term::App(
                 Box::new(not()),
-                Box::new(Term::App(Box::new(eq()), Box::new(Term::Var("n".to_string())))),
+                Box::new(Term::App(
+                    Box::new(Term::App(Box::new(eq()), Box::new(Term::Var("n".to_string())))),
+                    Box::new(Term::Var("m".to_string())),
+                )),
             )),
         }),
     }
@@ -266,14 +204,16 @@ pub fn le() -> Term {
             ty: Type::Nat,
             body: Box::new(Term::App(
                 Box::new(is_zero()),
-                Box::new(Term::App(Box::new(minus()), Box::new(Term::Var("n".to_string())))),
+                Box::new(Term::Sub(
+                    Box::new(Term::Var("n".to_string())),
+                    Box::new(Term::Var("m".to_string())),
+                )),
             )),
         }),
     }
 }
 
 pub fn lt() -> Term {
-    // Note: must use Succ rather than pred as 0 is not < 0
     Term::Abs {
         var: "n".to_string(),
         ty: Type::Nat,
@@ -281,11 +221,11 @@ pub fn lt() -> Term {
             var: "m".to_string(),
             ty: Type::Nat,
             body: Box::new(Term::App(
-                Box::new(le()),
                 Box::new(Term::App(
+                    Box::new(le()),
                     Box::new(Term::Succ(Box::new(Term::Var("n".to_string())))),
-                    Box::new(Term::Var("m".to_string())),
                 )),
+                Box::new(Term::Var("m".to_string())),
             )),
         }),
     }
@@ -298,7 +238,10 @@ pub fn ge() -> Term {
         body: Box::new(Term::Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(Box::new(le()), Box::new(Term::Var("m".to_string())))),
+            body: Box::new(Term::App(
+                Box::new(Term::App(Box::new(le()), Box::new(Term::Var("m".to_string())))),
+                Box::new(Term::Var("n".to_string())),
+            )),
         }),
     }
 }
@@ -310,7 +253,10 @@ pub fn gt() -> Term {
         body: Box::new(Term::Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(Box::new(lt()), Box::new(Term::Var("m".to_string())))),
+            body: Box::new(Term::App(
+                Box::new(Term::App(Box::new(lt()), Box::new(Term::Var("m".to_string())))),
+                Box::new(Term::Var("n".to_string())),
+            )),
         }),
     }
 }
@@ -353,9 +299,9 @@ impl AST {
                 if_succ: Box::new(d(*if_succ)),
             },
             Nat(n) => nat(n),
-            Add(t1, t2) => t!(!(plus()) !(d(*t1)) !(d(*t2))),
-            Sub(t1, t2) => t!(!(minus()) !(d(*t1)) !(d(*t2))),
-            Mul(t1, t2) => t!(!(mult()) !(d(*t1)) !(d(*t2))),
+            Add(t1, t2) => Term::Add(Box::new(d(*t1)), Box::new(d(*t2))),
+            Sub(t1, t2) => Term::Sub(Box::new(d(*t1)), Box::new(d(*t2))),
+            Mul(t1, t2) => Term::Mul(Box::new(d(*t1)), Box::new(d(*t2))),
             Le(t1, t2) => t!(!(le()) !(d(*t1)) !(d(*t2))),
             Eq(t1, t2) => t!(!(eq()) !(d(*t1)) !(d(*t2))),
             Lt(t1, t2) => t!(!(lt()) !(d(*t1)) !(d(*t2))),
