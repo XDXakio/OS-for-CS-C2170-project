@@ -105,7 +105,6 @@ pub fn parse_app<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str,
     .parse(rest)
 }
 
-/// Parses a long-form lambda: `fun x, body`.
 use crate::types::Type;
 
 fn parse_type(input: &str) -> IResult<&str, Type> {
@@ -115,17 +114,13 @@ fn parse_type(input: &str) -> IResult<&str, Type> {
     ))
     .parse(input)
 }
-/// Parses a short-form lambda: `x => body`.
+/// Parses a short-form lambda: `x: Type => body`.
 pub fn parse_abs<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
     let (input, var) = parse_lambda_var(module, input)?;
     
-    // Optional type annotation (e.g., x: Nat)
-    let (input, ty) = if let Ok((input, _)) = lex(tag(":")).parse(input) {
-        let (input, ty) = parse_type(input)?;
-        (input, ty)
-    } else {
-        (input, Type::Nat) // default type for untyped lambdas
-    };
+    // Require  : Type
+    let (input, _) = lex(tag(":")).parse(input)?;
+    let (input, ty) = parse_type(input)?;
 
     // Require '=>'
     let (input, _) = lex(tag("=>")).parse(input)?;
