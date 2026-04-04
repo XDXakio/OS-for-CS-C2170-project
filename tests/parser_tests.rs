@@ -58,7 +58,7 @@ fn test_parse_ast() {
     );
     let module = Module::new_with_prelude();
     assert_eq!(
-        all_consuming(|i| parse_ast(&module, i)).parse("1 + b c * 5 - (fun x => x) d e f"),
+        all_consuming(|i| parse_ast(&module, i)).parse("1 + b c * 5 - (fun x: Nat => x) d e f"),
         Ok(("", expected))
     );
 }
@@ -124,13 +124,13 @@ fn test_parse_lambda_forms() {
 
     // Parse typed lambda (fun x => x)
     assert_eq!(
-        all_consuming(|i| parse_ast(&module, i)).parse("fun x => x"),
+        all_consuming(|i| parse_ast(&module, i)).parse("fun x: Nat => x"),
         Ok(("", expected.clone()))
     );
 
     // Parse shorthand lambda (x => x)
     assert_eq!(
-        all_consuming(|i| parse_ast(&module, i)).parse("x => x"),
+        all_consuming(|i| parse_ast(&module, i)).parse("x: Nat => x"),
         Ok(("", expected))
     );
 }
