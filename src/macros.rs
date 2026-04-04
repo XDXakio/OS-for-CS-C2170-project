@@ -5,7 +5,7 @@ macro_rules! t_ty {
         crate::types::Type::Nat
     };
     ($t1:tt -> $($t2:tt)+) => {
-        crate::types::Type::Arrow(
+        crate::types::Type::Func(
             Box::new(t_ty!($t1)),
             Box::new(t_ty!($($t2)+)),
         )
