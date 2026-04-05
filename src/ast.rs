@@ -1,7 +1,8 @@
 use crate::{
     module::Module,
     t,
-    term::{Term, nat}, types::Type,
+    term::{Term, nat},
+    types::Type,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -63,113 +64,111 @@ pub fn decode_nat(mut t: &Term) -> Option<u64> {
     if let Term::Zero = t { Some(n) } else { None }
 }
 
-pub fn and() -> Term {
-    Term::Abs {
+pub fn and() -> AST {
+    AST::Abs {
         var: "b1".to_string(),
         ty: Type::Bool,
-        body: Box::new(Term::Abs {
+        body: Box::new(AST::Abs {
             var: "b2".to_string(),
             ty: Type::Bool,
-            body: Box::new(Term::Ite {
-                cond: Box::new(Term::Var("b1".to_string())),
-                if_true: Box::new(Term::Var("b2".to_string())),
-                if_false: Box::new(Term::False),
+            body: Box::new(AST::Ite {
+                cond: Box::new(AST::Var("b1".to_string())),
+                if_true: Box::new(AST::Var("b2".to_string())),
+                if_false: Box::new(AST::False),
             }),
         }),
     }
 }
 
-pub fn not() -> Term {
-    Term::Abs {
+pub fn not() -> AST {
+    AST::Abs {
         var: "a".to_string(),
         ty: Type::Bool,
-        body: Box::new(Term::Ite {
-            cond: Box::new(Term::Var("a".to_string())),
-            if_true: Box::new(Term::False),
-            if_false: Box::new(Term::True),
+        body: Box::new(AST::Ite {
+            cond: Box::new(AST::Var("a".to_string())),
+            if_true: Box::new(AST::False),
+            if_false: Box::new(AST::True),
         }),
     }
 }
 
-pub fn or() -> Term {
-    Term::Abs {
+pub fn or() -> AST {
+    AST::Abs {
         var: "b1".to_string(),
         ty: Type::Bool,
-        body: Box::new(Term::Abs {
+        body: Box::new(AST::Abs {
             var: "b2".to_string(),
             ty: Type::Bool,
-            body: Box::new(Term::Ite {
-                cond: Box::new(Term::Var("b1".to_string())),
-                if_true: Box::new(Term::True),
-                if_false: Box::new(Term::Var("b2".to_string())),
+            body: Box::new(AST::Ite {
+                cond: Box::new(AST::Var("b1".to_string())),
+                if_true: Box::new(AST::True),
+                if_false: Box::new(AST::Var("b2".to_string())),
             }),
         }),
     }
 }
 
 /// The predecessor function for natural numbers
-pub fn pred() -> Term {
-    Term::Abs {
+pub fn pred() -> AST {
+    AST::Abs {
         var: "n".to_string(),
         ty: Type::Nat,
-        body: Box::new(Term::Rec {
-            scrutinee: Box::new(Term::Var("n".to_string())),
-            if_zero: Box::new(Term::Zero),
-            if_succ: Box::new(Term::Abs {
+        body: Box::new(AST::Rec {
+            scrutinee: Box::new(AST::Var("n".to_string())),
+            if_zero: Box::new(AST::Zero),
+            if_succ: Box::new(AST::Abs {
                 var: "pred".to_string(),
                 ty: Type::Nat,
-                body: Box::new(Term::Abs {
+                body: Box::new(AST::Abs {
                     var: "ih".to_string(),
                     ty: Type::Nat,
-                    body: Box::new(Term::Var("pred".to_string())),
+                    body: Box::new(AST::Var("pred".to_string())),
                 }),
             }),
         }),
     }
 }
 
-pub fn is_zero() -> Term {
-    Term::Abs {
+pub fn is_zero() -> AST {
+    Abs {
         var: "n".to_string(),
-        ty: Type::Nat,
-        body: Box::new(Term::Rec {
-            scrutinee: Box::new(Term::Var("n".to_string())),
-            if_zero: Box::new(Term::True),
-            if_succ: Box::new(Term::Abs {
+        ty: Type::Nat, 
+        body: Box::new(Rec {
+            scrutinee: Box::new(Var("n".to_string())),
+            if_zero: Box::new(True),
+            if_succ: Box::new(Abs {           // Nat -> Bool -> Bool
                 var: "pred".to_string(),
                 ty: Type::Nat,
-                body: Box::new(Term::Abs {
+                body: Box::new(Abs {
                     var: "ih".to_string(),
-                    ty: Type::Nat,
-                    body: Box::new(Term::False),
+                    ty: Type::Bool,           // FIXED: Bool, not Nat!
+                    body: Box::new(False),
                 }),
             }),
         }),
     }
 }
 
-pub fn eq() -> Term {
-    Term::Abs {
+pub fn eq() -> AST {
+    Abs {
         var: "n".to_string(),
         ty: Type::Nat,
-        body: Box::new(Term::Abs {
+        body: Box::new(Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(
-                Box::new(Term::App(Box::new(and()),
-                    Box::new(Term::App(
-                        Box::new(is_zero()),
-                        Box::new(Term::Sub(
-                            Box::new(Term::Var("n".to_string())),
-                            Box::new(Term::Var("m".to_string())),
-                        )),
-                    ))
-                )),
-                Box::new(Term::App(
+            body: Box::new(And(                    // And(t1, t2) - TWO args!
+                Box::new(App(                      // is_zero(n - m)
                     Box::new(is_zero()),
-                    Box::new(Term::Sub(
-                        Box::new(Term::Var("m".to_string())),
-                        Box::new(Term::Var("n".to_string())),
+                    Box::new(Sub(
+                        Box::new(Var("n".to_string())),
+                        Box::new(Var("m".to_string())),
+                    )),
+                )),
+                Box::new(App(                      // is_zero(m - n)  
+                    Box::new(is_zero()),
+                    Box::new(Sub(
+                        Box::new(Var("m".to_string())),
+                        Box::new(Var("n".to_string())),
                     )),
                 )),
             )),
@@ -177,88 +176,96 @@ pub fn eq() -> Term {
     }
 }
 
-pub fn neq() -> Term {
-    Term::Abs {
+pub fn neq() -> AST {
+    AST::Abs {
         var: "n".to_string(),
         ty: Type::Nat,
-        body: Box::new(Term::Abs {
+        body: Box::new(AST::Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(
+            body: Box::new(AST::App(
                 Box::new(not()),
-                Box::new(Term::App(
-                    Box::new(Term::App(Box::new(eq()), Box::new(Term::Var("n".to_string())))),
-                    Box::new(Term::Var("m".to_string())),
+                Box::new(AST::App(
+                    Box::new(AST::App(Box::new(eq()), Box::new(AST::Var("n".to_string())))),
+                    Box::new(AST::Var("m".to_string())),
                 )),
             )),
         }),
     }
 }
 
-pub fn le() -> Term {
-    Term::Abs {
+pub fn le() -> AST {
+    AST::Abs {
         var: "n".to_string(),
         ty: Type::Nat,
-        body: Box::new(Term::Abs {
+        body: Box::new(AST::Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(
+            body: Box::new(AST::App(
                 Box::new(is_zero()),
-                Box::new(Term::Sub(
-                    Box::new(Term::Var("n".to_string())),
-                    Box::new(Term::Var("m".to_string())),
+                Box::new(AST::Sub(
+                    Box::new(AST::Var("n".to_string())),
+                    Box::new(AST::Var("m".to_string())),
                 )),
             )),
         }),
     }
 }
 
-pub fn lt() -> Term {
-    Term::Abs {
+pub fn lt() -> AST {
+    AST::Abs {
         var: "n".to_string(),
         ty: Type::Nat,
-        body: Box::new(Term::Abs {
+        body: Box::new(AST::Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(
-                Box::new(Term::App(
+            body: Box::new(AST::App(
+                Box::new(AST::App(
                     Box::new(le()),
-                    Box::new(Term::Succ(Box::new(Term::Var("n".to_string())))),
+                    Box::new(AST::Succ(Box::new(AST::Var("n".to_string())))),
                 )),
-                Box::new(Term::Var("m".to_string())),
+                Box::new(AST::Var("m".to_string())),
             )),
         }),
     }
 }
 
-pub fn ge() -> Term {
-    Term::Abs {
+pub fn ge() -> AST {
+    AST::Abs {
         var: "n".to_string(),
         ty: Type::Nat,
-        body: Box::new(Term::Abs {
+        body: Box::new(AST::Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(
-                Box::new(Term::App(Box::new(le()), Box::new(Term::Var("m".to_string())))),
-                Box::new(Term::Var("n".to_string())),
+            body: Box::new(AST::App(
+                Box::new(AST::App(Box::new(le()), Box::new(AST::Var("m".to_string())))),
+                Box::new(AST::Var("n".to_string())),
             )),
         }),
     }
 }
 
-pub fn gt() -> Term {
-    Term::Abs {
+pub fn gt() -> AST {
+    AST::Abs {
         var: "n".to_string(),
         ty: Type::Nat,
-        body: Box::new(Term::Abs {
+        body: Box::new(AST::Abs {
             var: "m".to_string(),
             ty: Type::Nat,
-            body: Box::new(Term::App(
-                Box::new(Term::App(Box::new(lt()), Box::new(Term::Var("m".to_string())))),
-                Box::new(Term::Var("n".to_string())),
+            body: Box::new(AST::App(
+                Box::new(AST::App(Box::new(lt()), Box::new(AST::Var("m".to_string())))),
+                Box::new(AST::Var("n".to_string())),
             )),
         }),
     }
+}
+
+fn app1(f: Term, a: Term) -> Term {
+    Term::App(Box::new(f), Box::new(a))
+}
+
+fn app2(f: Term, a: Term, b: Term) -> Term {
+    app1(app1(f, a), b)
 }
 
 impl AST {
@@ -275,9 +282,20 @@ impl AST {
             App(t1, t2) => t!(!(d(*t1)) !(d(*t2))),
             True => Term::True,
             False => Term::False,
-            And(t1, t2) => t!(!(and()) !(d(*t1)) !(d(*t2))),
-            Or(t1, t2) => t!(!(or()) !(d(*t1)) !(d(*t2))),
-            Not(t) => t!(!(not()) !(d(*t))),
+            And(t1, t2) => {
+                let f = env.get_term("and").expect("and in env");
+                app2(f, d(*t1), d(*t2))
+            }
+
+            Or(t1, t2) => {
+                let f = env.get_term("or").expect("or in env");
+                app2(f, d(*t1), d(*t2))
+            }
+
+            Not(t) => {
+                let f = env.get_term("not").expect("not in env");
+                app1(f, d(*t))
+            }
             Ite {
                 cond,
                 if_true,
@@ -302,13 +320,40 @@ impl AST {
             Add(t1, t2) => Term::Add(Box::new(d(*t1)), Box::new(d(*t2))),
             Sub(t1, t2) => Term::Sub(Box::new(d(*t1)), Box::new(d(*t2))),
             Mul(t1, t2) => Term::Mul(Box::new(d(*t1)), Box::new(d(*t2))),
-            Le(t1, t2) => t!(!(le()) !(d(*t1)) !(d(*t2))),
-            Eq(t1, t2) => t!(!(eq()) !(d(*t1)) !(d(*t2))),
-            Lt(t1, t2) => t!(!(lt()) !(d(*t1)) !(d(*t2))),
-            Neq(t1, t2) => t!(!(neq()) !(d(*t1)) !(d(*t2))),
-            Ge(t1, t2) => t!(!(ge()) !(d(*t1)) !(d(*t2))),
-            Gt(t1, t2) => t!(!(gt()) !(d(*t1)) !(d(*t2))),
-            Name(name) => env.get_term(&name).expect("env to contain name"),
+            Eq(t1, t2) => {
+                let f = env.get_term("eq").expect("eq in env");
+                app2(f, d(*t1), d(*t2))
+            }
+
+            Neq(t1, t2) => {
+                let f = env.get_term("neq").expect("neq in env");
+                app2(f, d(*t1), d(*t2))
+            }
+
+            Le(t1, t2) => {
+                let f = env.get_term("le").expect("le in env");
+                app2(f, d(*t1), d(*t2))
+            }
+
+            Lt(t1, t2) => {
+                let f = env.get_term("lt").expect("lt in env");
+                app2(f, d(*t1), d(*t2))
+            }
+
+            Ge(t1, t2) => {
+                let f = env.get_term("ge").expect("ge in env");
+                app2(f, d(*t1), d(*t2))
+            }
+
+            Gt(t1, t2) => {
+                let f = env.get_term("gt").expect("gt in env");
+                app2(f, d(*t1), d(*t2))
+            }
+            Name(name) => {
+                // CRITICAL: Direct lookup, NO recursion!
+                env.get_term(&name)
+                    .unwrap_or_else(|| Term::Var(name))
+            }
         }
     }
 }
