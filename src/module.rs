@@ -1,10 +1,10 @@
-use crate::{ast::AST, term::Term, types::Type};
+use crate::{ast::{self, AST}, term::Term, types::Type};
 
 use AST::*;
 
 #[derive(Debug, Clone, Default)]
 /// A module containing declarations
-pub struct Module(Vec<(String, AST)>);
+pub struct Module { asts: Vec<(String, AST)>, terms: std::collections::HashMap<String, Term>, }
 
 fn succ() -> AST {
     Abs {
@@ -30,7 +30,10 @@ fn rec() -> AST {
                 body: Box::new(Rec {
                     scrutinee: Box::new(Var("n".to_string())),
                     if_zero: Box::new(Var("z".to_string())),
-                    if_succ: Box::new(Var("s".to_string())),
+                    if_succ: Box::new(App(
+                        Box::new(Var("s".to_string())),
+                        Box::new(Var("z".to_string())),
+                    )),
                 }),
             }),
         }),
@@ -39,7 +42,7 @@ fn rec() -> AST {
 
 impl Module {
     pub fn get_term_ast(&self, name: &str) -> Option<&AST> {
-        self.0.iter().rfind(|(n, _)| n == name).map(|(_, ast)| ast)
+        self.asts.iter().rfind(|(n, _)| n == name).map(|(_, ast)| ast)
     }
 
     pub fn new() -> Self {
@@ -47,33 +50,61 @@ impl Module {
     }
 
     pub fn insert(&mut self, name: String, ast: AST) {
-        self.0.push((name, ast));
+        self.asts.push((name, ast));
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &(String, AST)> {
-        self.0.iter()
+        self.asts.iter()
     }
 
     pub fn new_with_prelude() -> Self {
+        use crate::ast;
         let mut m = Self::new();
-        m.insert("succ".to_string(), succ());
-        m.insert("rec".to_string(), rec());
+        
+        // List ALL prelude ASTs
+        let prelude_asts = [
+            ("succ", succ()),
+            ("rec", rec()),
+            ("pred", ast::pred()),
+            ("is_zero", ast::is_zero()),
+            ("and", ast::and()),
+            ("or", ast::or()),
+            ("not", ast::not()),
+            ("eq", ast::eq()),
+            ("neq", ast::neq()),
+            ("lt", ast::lt()),
+            ("le", ast::le()),
+            ("gt", ast::gt()),
+            ("ge", ast::ge()),
+        ];
+        
+        // Convert ALL to Term ONCE at startup (safe, empty module)
+        for (name, ast) in prelude_asts {
+            let term = ast.clone().desugar(&m);  // No recursion risk - empty module
+            m.terms.insert(name.to_string(), term);
+            m.asts.push((name.to_string(), ast));
+        }
+        
         m
     }
 
     pub fn contains(&self, name: &str) -> bool {
-        self.0.iter().rfind(|(n, _ast)| n == name).is_some()
+        self.asts.iter().rfind(|(n, _ast)| n == name).is_some()
     }
 
     pub fn get(&self, name: &str) -> Option<&AST> {
-        self.0
+        self.asts
             .iter()
             .rfind(|(n, _ast)| n == name)
             .map(|(_n, ast)| ast)
     }
 
     pub fn get_term(&self, name: &str) -> Option<Term> {
-        let ast = self.get(name).cloned()?;
-        Some(ast.desugar(self))
+        self.terms.get(name)
+            .cloned()
+            .or_else(|| {
+                self.get(name)
+                    .map(|ast| ast.clone().desugar(self))
+            })
     }
 }
