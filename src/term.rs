@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use crate::ast::decode_nat;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// A term of the untyped lambda calculus with booleans
 pub enum Term {
     // Core lambda calculus
@@ -39,6 +39,9 @@ pub enum Term {
     Add(Box<Term>, Box<Term>),
     Sub(Box<Term>, Box<Term>),
     Mul(Box<Term>, Box<Term>),
+    Pair(Box<Term>, Box<Term>),
+    Fst(Box<Term>),
+    Snd(Box<Term>),
 }
 
 /// Return a variable name which is not in `vars` and starts with `base`
@@ -79,6 +82,12 @@ impl Term {
                 Rec { scrutinee, if_zero, if_succ } => {
                     go(scrutinee, out); go(if_zero, out); go(if_succ, out);
                 }
+                Pair(t1, t2) => {
+                    go(t1, out);
+                    go(t2, out);
+                }
+                Fst(t) => go(t, out),
+                Snd(t) => go(t, out),
             }
         }
 
@@ -103,6 +112,12 @@ impl Term {
                 scrutinee.rename(var, new); if_zero.rename(var, new); if_succ.rename(var, new);
             }
             True | False | Zero | Add(_, _) | Sub(_ , _) | Mul(_ , _) => {}
+            Pair(l, r) => {
+                l.rename(var, new);
+                r.rename(var, new);
+            }
+            Fst(t) => t.rename(var, new),
+            Snd(t) => t.rename(var, new),
         }
     }
 
@@ -161,6 +176,15 @@ impl Term {
                 Box::new(a.subst(var, value)),
                 Box::new(b.subst(var, value))
             ),
+
+            Pair(t1, t2) => Pair(
+                Box::new(t1.subst(var, value)),
+                Box::new(t2.subst(var, value)),
+            ),
+
+            Fst(t) => Fst(Box::new(t.subst(var, value))),
+
+            Snd(t) => Snd(Box::new(t.subst(var, value))),
         }
     }
 
