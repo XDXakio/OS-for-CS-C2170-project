@@ -31,7 +31,7 @@ pub fn parse_variable_name(input: &str) -> IResult<&str, &str> {
 pub fn is_reserved(name: &str) -> bool {
     matches!(
         name,
-        "fun" | "if" | "then" | "else" | "true" | "false" | "and" | "or" | "not" | "S" | "Z"
+        "fun" | "if" | "then" | "else" | "true" | "false" | "and" | "or" | "not" | "S" | "Z" | "fst" | "snd"
     )
 }
 
@@ -95,10 +95,12 @@ pub fn parse_ite<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str,
 
 /// Parses left-associative application chains.
 pub fn parse_app<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    println!("parse_app DEBUG input='{}'", input.trim());
     let (rest, t1) = parse_atom(module, input)?;
+    println!("  parse_app first atom OK, fold_many0 on '{}'", rest.trim());
 
     fold_many0(
-        preceded(space1, move |i| parse_atom(module, i)),
+        preceded(space0, move |i| parse_atom(module, i)), // <- changed from space1
         move || t1.clone(),
         |t1, t2| App(Box::new(t1), Box::new(t2)),
     )
@@ -156,7 +158,40 @@ pub fn parse_lambda<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i s
 
 /// Parses a parenthesized expression.
 pub fn parse_paren<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
-    delimited(tag("("), lex(|i| parse_ast(module, i)), tag(")")).parse(input)
+    println!("parse_paren DEBUG input='{}'", input.trim());
+
+    // Consume '('
+    let (input, _) = lex(tag("(")).parse(input)?;
+
+    // Parse **single AST**, not full application
+    let (input, first_expr) = parse_ast(module, input)?;
+    println!("  parse_paren first_expr parsed, remaining='{}'", input.trim());
+
+    // Optionally parse a comma for pairs
+    let (input, maybe_second) =
+        opt(preceded(lex(tag(",")), |i| parse_ast(module, i))).parse(input)?;
+
+    // Consume ')'
+    let (input, _) = lex(tag(")")).parse(input)?;
+    println!("parse_paren SUCCESS, remaining='{}'", input.trim());
+
+    if let Some(second_expr) = maybe_second {
+        Ok((input, AST::Pair(Box::new(first_expr), Box::new(second_expr))))
+    } else {
+        Ok((input, first_expr))
+    }
+}
+
+fn parse_fst<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    let (input, _) = lex(tag("fst")).parse(input)?;
+    let (input, term) = parse_app(module, input)?; // ✅ match fst
+    Ok((input, AST::Fst(Box::new(term))))
+}
+
+fn parse_snd<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    let (input, _) = lex(tag("snd")).parse(input)?;
+    let (input, term) = parse_app(module, input)?; // ✅ match fst
+    Ok((input, AST::Snd(Box::new(term))))
 }
 
 pub fn parse_zero(input: &str) -> IResult<&str, AST> {
@@ -168,6 +203,8 @@ pub fn parse_atom<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str
     alt((
         |i| parse_paren(module, i),
         |i| parse_ite(module, i),
+        |i| parse_fst(module, i),
+        |i| parse_snd(module, i),
         parse_bool,
         |i| parse_lambda(module, i),
         parse_nat,
