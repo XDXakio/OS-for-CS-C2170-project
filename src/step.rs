@@ -37,9 +37,81 @@ impl Term {
                 scrutinee: scrutinee.clone(),
                 if_zero: if_zero.clone(),
                 if_succ: if_succ.clone(),
-            }       
+            },
+            Pair(t1, t2) => Pair(t1.clone(), t2.clone()),
+            Fst(t) => {
+                let t_whnf = Term::whnf(t);
+                match t_whnf {
+                    Pair(v1, _) => *v1,
+                    other => Fst(Box::new(other)),
+                }
+            }
+            Snd(t) => {
+                let t_whnf = Term::whnf(t);
+                match t_whnf {
+                    Pair(_, v2) => *v2,
+                    other => Snd(Box::new(other)),
+                }
+            }
         }
     }
+
+    pub fn pair1(&self) -> Option<Self> {
+        match self {
+            Pair(t1, t2) => {
+                if let Some(t1_step) = t1.step() {
+                    Some(Pair(Box::new(t1_step), t2.clone()))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn pair2(&self) -> Option<Self> {
+        match self {
+            Pair(t1, t2) => {
+                if t1.step().is_none() {
+                    t2.step().map(|t2_step| Pair(t1.clone(), Box::new(t2_step)))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn fst(&self) -> Option<Self> {
+        match self {
+            Fst(t) => {
+                if let Some(t_step) = t.step() {
+                    return Some(Fst(Box::new(t_step)));
+                }
+                if let Pair(v1, _) = &**t {
+                    return Some(*v1.clone());
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    pub fn snd(&self) -> Option<Self> {
+        match self {
+            Snd(t) => {
+                if let Some(t_step) = t.step() {
+                    return Some(Snd(Box::new(t_step)));
+                }
+                if let Pair(_, v2) = &**t {
+                    return Some(*v2.clone());
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
     /// Applies the `AppAbs` rule returning None if it doesn't apply.
     pub fn app_abs(&self) -> Option<Self> {
         match self {
@@ -160,6 +232,8 @@ impl Term {
         self.arith()
             .or_else(|| self.ite())
             .or_else(|| self.rec())
+            .or_else(|| self.fst())
+            .or_else(|| self.snd())
             .or_else(|| self.app_abs())
             .or_else(|| self.app1())
             .or_else(|| self.ite1())
