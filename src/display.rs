@@ -1,20 +1,56 @@
 use std::fmt::Display;
+use std::fmt;
 
-use crate::{ast::decode_nat, t, term::Term, types::Type,};
+use crate::{ast::decode_nat, t, term::Term, types::{ Type, TypeError },};
 use Term::*;
 
 impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Type::Bool => write!(f, "Bool"),
             Type::Nat => write!(f, "Nat"),
-            Type::Func(t1, t2) => {
-                // Parentheses for clarity if input is a function type
-                if matches!(**t1, Type::Func(_, _)) {
-                    write!(f, "({t1}) -> {t2}")
-                } else {
-                    write!(f, "{t1} -> {t2}")
-                }
+            Type::Bool => write!(f, "Bool"),
+            Type::Func(t1, t2) => write!(f, "({} -> {})", t1, t2),
+        }
+    }
+}
+
+impl fmt::Display for TypeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TypeError::UnboundVariable(x) => {
+                write!(f, "Unbound variable: {}", x)
+            }
+
+            TypeError::Mismatch { expected, found, context } => {
+                write!(
+                    f,
+                    "Type mismatch in {}: expected {:?}, found {:?}",
+                    context, expected, found
+                )
+            }
+
+            TypeError::ExpectedBool { found, context } => {
+                write!(
+                    f,
+                    "Expected Bool in {}, but found {:?}",
+                    context, found
+                )
+            }
+
+            TypeError::ExpectedNat { found, context } => {
+                write!(
+                    f,
+                    "Expected Nat in {}, but found {:?}",
+                    context, found
+                )
+            }
+
+            TypeError::ExpectedFunction { found, context } => {
+                write!(
+                    f,
+                    "Expected function in {}, but found {:?}",
+                    context, found
+                )
             }
         }
     }
