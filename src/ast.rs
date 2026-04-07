@@ -54,6 +54,7 @@ pub enum AST {
     Fst(Box<AST>),
     Snd(Box<AST>),
     Nil,
+    TypedNil(Type),
     Cons(Box<AST>, Box<AST>),
     List(Vec<AST>),
     Head(Box<AST>),
@@ -370,6 +371,7 @@ impl AST {
             Fst(t) => Term::Fst(Box::new(d(*t))),
             Snd(t) => Term::Snd(Box::new(d(*t))),
             Nil => Term::Nil(None),
+            TypedNil(ty) => Term::Nil(Some(ty)),
 
             Cons(h, t) => {
                 Term::Cons(
