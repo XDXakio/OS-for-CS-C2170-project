@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::ast::decode_nat;
+use crate::{ast::decode_nat, types::Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// A term of the untyped lambda calculus with booleans
@@ -42,6 +42,8 @@ pub enum Term {
     Pair(Box<Term>, Box<Term>),
     Fst(Box<Term>),
     Snd(Box<Term>),
+    Nil(Option<Type>),
+    Cons(Box<Term>, Box<Term>),
 }
 
 /// Return a variable name which is not in `vars` and starts with `base`
@@ -88,6 +90,11 @@ impl Term {
                 }
                 Fst(t) => go(t, out),
                 Snd(t) => go(t, out),
+                Nil(_) => {}
+                Cons(h, t) => {
+                    go(h, out);
+                    go(t, out);
+                }
             }
         }
 
@@ -118,6 +125,11 @@ impl Term {
             }
             Fst(t) => t.rename(var, new),
             Snd(t) => t.rename(var, new),
+            Nil(_) => {}
+            Cons(h, t) => {
+                h.rename(var, new);
+                t.rename(var, new);
+            }
         }
     }
 
@@ -185,6 +197,13 @@ impl Term {
             Fst(t) => Fst(Box::new(t.subst(var, value))),
 
             Snd(t) => Snd(Box::new(t.subst(var, value))),
+
+            Nil(_) => Nil(None),
+
+            Cons(h, t) => Cons(
+                Box::new(h.subst(var, value)),
+                Box::new(t.subst(var, value)),
+            ),
         }
     }
 
@@ -240,6 +259,24 @@ impl Term {
             }
 
             _ => None,
+        }
+    }
+
+    pub fn collect_list(&self) -> Option<Vec<&Term>> {
+        let mut elems = Vec::new();
+        let mut current = self;
+
+        loop {
+            match current {
+                Term::Nil(_) => return Some(elems),
+
+                Term::Cons(head, tail) => {
+                    elems.push(head.as_ref());
+                    current = tail.as_ref();
+                }
+
+                _ => return None, // not a proper list
+            }
         }
     }
 }
