@@ -2,12 +2,13 @@ use nom::IResult;
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
-use nom::character::complete::{digit1, line_ending, space0, space1};
+use nom::character::complete::{digit1, line_ending, space0};
 
 use nom::combinator::eof;
 use nom::combinator::{fail, map_res, opt, value};
 use nom::error::{Error, ErrorKind};
 use nom::multi::fold_many0;
+use nom::multi::separated_list0;
 use nom::sequence::{delimited, preceded, terminated};
 use nom_language::precedence::{Assoc, Operation, binary_op, precedence, unary_op};
 
@@ -198,6 +199,15 @@ pub fn parse_zero(input: &str) -> IResult<&str, AST> {
     value(Zero, lex(tag("0"))).parse(input)
 }
 
+pub fn parse_list<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    let (input, _) = lex(tag("[")).parse(input)?;
+    let (input, elems) = separated_list0(lex(tag(",")), |i| parse_ast(module, i)).parse(input)?;
+    let (input, _) = lex(tag("]")).parse(input)?;
+
+    let list_ast = AST::List(elems); // store as AST::List first
+    Ok((input, list_ast))
+}
+
 /// Parses an atomic expression (no infix operators).
 pub fn parse_atom<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
     alt((
@@ -207,6 +217,7 @@ pub fn parse_atom<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str
         |i| parse_snd(module, i),
         parse_bool,
         |i| parse_lambda(module, i),
+        |i| parse_list(module, i),
         parse_nat,
         |i| parse_var(module, i),
         parse_zero,
