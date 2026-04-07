@@ -191,6 +191,28 @@ impl Term {
         }
     }
 
+    pub fn tail_eval(&self) -> Option<Self> {
+        match Term::whnf(self) {
+            Cons(_, t) => Some(*t),
+            _ => None,
+        }
+    }
+
+    pub fn head_eval(&self) -> Option<Self> {
+        match Term::whnf(self) {
+            Cons(h, _) => Some(*h),
+            _ => None,
+        }
+    }
+
+    pub fn is_empty_eval(&self) -> Option<Self> {
+        match Term::whnf(self) {
+            Nil(_) => Some(True),
+            Cons(_, _) => Some(False),
+            _ => None,
+        }
+    }
+
     /// Applies the `AppAbs` rule returning None if it doesn't apply.
     pub fn app_abs(&self) -> Option<Self> {
         match self {
