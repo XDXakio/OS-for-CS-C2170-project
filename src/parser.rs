@@ -201,11 +201,30 @@ pub fn parse_zero(input: &str) -> IResult<&str, AST> {
 
 pub fn parse_list<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
     let (input, _) = lex(tag("[")).parse(input)?;
-    let (input, elems) = separated_list0(lex(tag(",")), |i| parse_ast(module, i)).parse(input)?;
+    let (input, elems) =
+        separated_list0(lex(tag(",")), |i| parse_ast(module, i)).parse(input)?;
     let (input, _) = lex(tag("]")).parse(input)?;
 
-    let list_ast = AST::List(elems); // store as AST::List first
-    Ok((input, list_ast))
+    // Optional type annotation: : [Type]
+    let (input, ty_opt) = opt(preceded(
+        lex(tag(":")),
+        delimited(
+            lex(tag("[")),
+            parse_type,
+            lex(tag("]")),
+        ),
+    ))
+    .parse(input)?;
+
+    if elems.is_empty() {
+        println!("List is empty");
+        match ty_opt {
+            Some(ty) => Ok((input, AST::TypedNil(ty))),
+            None => Ok((input, AST::Nil)),
+        }
+    } else {
+        Ok((input, AST::List(elems)))
+    }
 }
 
 fn parse_head<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
