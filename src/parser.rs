@@ -32,7 +32,7 @@ pub fn parse_variable_name(input: &str) -> IResult<&str, &str> {
 pub fn is_reserved(name: &str) -> bool {
     matches!(
         name,
-        "fun" | "if" | "then" | "else" | "true" | "false" | "and" | "or" | "not" | "S" | "Z" | "fst" | "snd"
+        "fun" | "if" | "then" | "else" | "true" | "false" | "and" | "or" | "not" | "S" | "Z" | "fst" | "snd" | "head" | "tail" | "is_empty"
     )
 }
 
@@ -185,13 +185,13 @@ pub fn parse_paren<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i st
 
 fn parse_fst<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
     let (input, _) = lex(tag("fst")).parse(input)?;
-    let (input, term) = parse_app(module, input)?; // ✅ match fst
+    let (input, term) = parse_app(module, input)?;
     Ok((input, AST::Fst(Box::new(term))))
 }
 
 fn parse_snd<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
     let (input, _) = lex(tag("snd")).parse(input)?;
-    let (input, term) = parse_app(module, input)?; // ✅ match fst
+    let (input, term) = parse_app(module, input)?;
     Ok((input, AST::Snd(Box::new(term))))
 }
 
@@ -208,6 +208,24 @@ pub fn parse_list<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str
     Ok((input, list_ast))
 }
 
+fn parse_head<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    let (input, _) = lex(tag("head")).parse(input)?;
+    let (input, term) = parse_app(module, input)?;
+    Ok((input, AST::Head(Box::new(term))))
+}
+
+fn parse_tail<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    let (input, _) = lex(tag("tail")).parse(input)?;
+    let (input, term) = parse_app(module, input)?;
+    Ok((input, AST::Tail(Box::new(term))))
+}
+
+fn parse_is_empty<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    let (input, _) = lex(tag("is_empty")).parse(input)?;
+    let (input, term) = parse_app(module, input)?;
+    Ok((input, AST::IsEmpty(Box::new(term))))
+}
+
 /// Parses an atomic expression (no infix operators).
 pub fn parse_atom<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
     alt((
@@ -215,6 +233,9 @@ pub fn parse_atom<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str
         |i| parse_ite(module, i),
         |i| parse_fst(module, i),
         |i| parse_snd(module, i),
+        |i| parse_head(module, i),
+        |i| parse_tail(module, i),
+        |i| parse_is_empty(module, i),
         parse_bool,
         |i| parse_lambda(module, i),
         |i| parse_list(module, i),
