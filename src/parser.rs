@@ -101,10 +101,11 @@ pub fn parse_app<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str,
     let (rest, t1) = parse_atom(module, input)?;
     println!("  parse_app first atom OK, fold_many0 on '{}'", rest.trim());
 
+    let atom_parser = move |i| parse_atom(module, i);
     fold_many0(
-        preceded(space0, move |i| parse_atom(module, i)), // <- changed from space1
+        preceded(space0, atom_parser),
         move || t1.clone(),
-        |t1, t2| App(Box::new(t1), Box::new(t2)),
+        |func, arg| AST::App(Box::new(func), Box::new(arg)),
     )
     .parse(rest)
 }
@@ -251,6 +252,12 @@ fn parse_is_empty<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str
     Ok((input, AST::IsEmpty(Box::new(term))))
 }
 
+fn parse_succ<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
+    let (input, _) = lex(tag("S")).parse(input)?;
+    let (input, inner) = parse_atom(module, input)?;
+    Ok((input, AST::Succ(Box::new(inner))))
+}
+
 /// Parses an atomic expression (no infix operators).
 pub fn parse_atom<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
     alt((
@@ -261,12 +268,13 @@ pub fn parse_atom<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str
         |i| parse_head(module, i),
         |i| parse_tail(module, i),
         |i| parse_is_empty(module, i),
+        |i| parse_succ(module, i),
         parse_bool,
         |i| parse_lambda(module, i),
         |i| parse_list(module, i),
+        parse_zero,
         parse_nat,
         |i| parse_var(module, i),
-        parse_zero,
     ))
     .parse(input)
 }

@@ -144,7 +144,7 @@ fn test_parse_primitives_partial_application() {
         Ok(("", expected))
     );
 
-    let expected_rec = App(Box::new(Name("rec".to_string())), Box::new(Nat(0)));
+    let expected_rec = App(Box::new(Name("rec".to_string())), Box::new(Zero));
     assert_eq!(
         all_consuming(|i| parse_ast(&module, i)).parse("rec 0"),
         Ok(("", expected_rec))

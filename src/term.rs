@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::{ast::decode_nat, types::Type};
+use crate::{ types::Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// A term of the untyped lambda calculus with booleans
@@ -250,54 +250,44 @@ impl Term {
         match self {
             Term::Add(t1, t2) => {
                 // Step arguments first
-                if let Some(t1_step) = t1.step() {
-                    return Some(Add(Box::new(t1_step), t2.clone()));
-                }
-                if let Some(t2_step) = t2.step() {
-                    return Some(Add(t1.clone(), Box::new(t2_step)));
-                }
-
-                // Then compute
-                if let (Some(n1), Some(n2)) = (decode_nat(t1), decode_nat(t2)) {
-                    Some(nat(n1 + n2))
-                } else {
-                    None
+                let a_whnf = Term::whnf(t1).multistep();
+                let b_whnf = Term::whnf(t2).multistep();
+                match (a_whnf, b_whnf) {
+                    (Term::Zero, t3) => Some(t3),
+                    (Term::Succ(n), t3) => {
+                        let inner = Term::Add(Box::new(*n), Box::new(t3)).multistep();
+                        Some(Term::Succ(Box::new(inner)))
+                    },
+                    _ => None,
                 }
             }
 
             Term::Sub(t1, t2) => {
                 // Step arguments first
-                if let Some(t1_step) = t1.step() {
-                    return Some(Sub(Box::new(t1_step), t2.clone()));
-                }
-                if let Some(t2_step) = t2.step() {
-                    return Some(Sub(t1.clone(), Box::new(t2_step)));
-                }
-
-                // Then compute
-                if let (Some(n1), Some(n2)) = (decode_nat(t1), decode_nat(t2)) {
-                    Some(nat(n1.saturating_sub(n2)))
-                } else {
-                    None
+                let a_whnf = Term::whnf(t1).multistep();
+                let b_whnf = Term::whnf(t2).multistep();
+                match (a_whnf, b_whnf) {
+                    (Zero, _) => Some(Zero),
+                    (Succ(n), Zero) => Some(Succ(n)), 
+                    (Succ(n), Succ(m)) => Some(Term::Sub(Box::new(*n), Box::new(*m)).multistep()),
+                    _ => None,
                 }
             }
 
             Term::Mul(t1, t2) => {
-                if let Some(t1_step) = t1.step() {
-                    return Some(Mul(Box::new(t1_step), t2.clone()));
-                }
-                if let Some(t2_step) = t2.step() {
-                    return Some(Mul(t1.clone(), Box::new(t2_step)));
-                }
-
-                if let (Some(n1), Some(n2)) = (decode_nat(t1), decode_nat(t2)) {
-                    Some(nat(n1 * n2))
-                } else {
-                    None
+                let a_whnf = Term::whnf(t1).multistep();
+                let b_whnf = Term::whnf(t2).multistep();
+                match (a_whnf, b_whnf) {
+                    (Zero, _) | (_, Zero) => Some(Zero),
+                    (Succ(n), t3) => {
+                        let inner = Term::Mul(Box::new(*n), Box::new(t3.clone())).multistep();
+                        Some(Term::Add(Box::new(t3), Box::new(inner)).multistep())
+                    },
+                    _ => None,
                 }
             }
 
-            _ => None,
+            _  => None,
         }
     }
 

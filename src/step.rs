@@ -298,21 +298,35 @@ impl Term {
     /// Applies the `Rec` rule returning None if it doesn't apply.
     pub fn rec(&self) -> Option<Self> {
         if let Rec { scrutinee, if_zero, if_succ } = self {
-            if let Some(step) = scrutinee.step() {
-                return Some(Rec {
-                    scrutinee: Box::new(step),
-                    if_zero: if_zero.clone(),
-                    if_succ: if_succ.clone(),
-                });
-            }
+            let scrutinee_whnf = Term::whnf(scrutinee);
 
-            match Term::whnf(scrutinee) {
+            match scrutinee_whnf {
                 Zero => Some(*if_zero.clone()),
-                Succ(n) => Some(App(
-                    Box::new(App(if_succ.clone(), n.clone())),
-                    Box::new(Rec { scrutinee: n, if_zero: if_zero.clone(), if_succ: if_succ.clone() }),
-                )),
-                _ => None,
+
+                Succ(ref n) => {
+                    // Fully evaluate the recursive call on the predecessor
+                    let rec_n = Term::Rec {
+                        scrutinee: n.clone(),
+                        if_zero: if_zero.clone(),
+                        if_succ: if_succ.clone(),
+                    }
+                    .multistep(); // evaluate Rec n e0 es
+
+                    // Apply if_succ to n (predecessor) and the result of recursion
+                    Some(App(
+                        Box::new(App(if_succ.clone(), n.clone())), // first arg = n
+                        Box::new(rec_n),                            // second arg = rec n e0 es
+                    ))
+                }
+
+                _ => {
+                    // Step inside scrutinee if it's not Zero or Succ
+                    scrutinee.step().map(|s| Rec {
+                        scrutinee: Box::new(s),
+                        if_zero: if_zero.clone(),
+                        if_succ: if_succ.clone(),
+                    })
+                }
             }
         } else {
             None
@@ -322,21 +336,48 @@ impl Term {
     /// Does a beta-reduction step returning None if no reduction rule applies.
     /// Note: `AppAbs`, `Ite` and `Rec` and `App1` should come before the other rules.
     pub fn step(&self) -> Option<Self> {
-        self.app_abs()
+        // 1️⃣ Try function application (beta reduction)
+        if let Some(app) = self.app_abs()
             .or_else(|| self.app1())
-            .or_else(|| self.app2())
-            .or_else(|| self.ite())
-            .or_else(|| self.ite1())
-            .or_else(|| self.rec())
-            .or_else(|| self.fst())
-            .or_else(|| self.snd())
-            .or_else(|| self.head())
-            .or_else(|| self.tail())
-            .or_else(|| self.abs())
-            .or_else(|| self.is_empty())
-            .or_else(|| self.arith())
-            .or_else(|| self.succ1())
-            .or_else(|| self.abs())
+            .or_else(|| self.app2()) {
+            return Some(app);
+        }
+
+        // 2️⃣ Conditional expressions
+        if let Some(ite) = self.ite()
+            .or_else(|| self.ite1()) {
+            return Some(ite);
+        }
+
+        // 3️⃣ Recursion
+        if let Some(rec) = self.rec() {
+            return Some(rec);
+        }
+
+        // 4️⃣ Pairs
+        if let Some(pair1) = self.pair1() { return Some(pair1); }
+        if let Some(pair2) = self.pair2() { return Some(pair2); }
+
+        // 5️⃣ Fst/Snd
+        if let Some(fst) = self.fst() { return Some(fst); }
+        if let Some(snd) = self.snd() { return Some(snd); }
+
+        // 6️⃣ Lists
+        if let Some(head) = self.head() { return Some(head); }
+        if let Some(tail) = self.tail() { return Some(tail); }
+        if let Some(empty) = self.is_empty() { return Some(empty); }
+
+        // 7️⃣ Arithmetic
+        if let Some(arith) = self.arith() { return Some(arith); }
+
+        // 8️⃣ Succ
+        if let Some(succ) = self.succ1() { return Some(succ); }
+
+        // 9️⃣ Abs (step inside body)
+        if let Some(abs) = self.abs() { return Some(abs); }
+
+        // ✅ No rule applies
+        None
     }
 
     /// Does any number of beta-reduction steps.
