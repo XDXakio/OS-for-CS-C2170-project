@@ -6,11 +6,25 @@ use Term::*;
 
 impl Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+    match self {
             Type::Nat => write!(f, "Nat"),
             Type::Bool => write!(f, "Bool"),
-            Type::Func(t1, t2) => write!(f, "({} -> {})", t1, t2),
-            Type::Pair(t1, t2) => write!(f, "({}, {})", t1, t2),
+
+            Type::List(inner) => {
+                write!(f, "[{}]", inner)
+            }
+
+            Type::Pair(t1, t2) => {
+                write!(f, "({}, {})", t1, t2)
+            }
+
+            Type::Func(t1, t2) => {
+                // Parenthesize left side if it's also a function
+                match **t1 {
+                    Type::Func(_, _) => write!(f, "({}) -> {}", t1, t2),
+                    _ => write!(f, "{} -> {}", t1, t2),
+                }
+            }
         }
     }
 }
@@ -126,6 +140,30 @@ impl Display for Term {
                     write!(f, "snd ({t})")
                 } else {
                     write!(f, "snd {t}")
+                }
+            }
+
+            Term::Nil(_) => write!(f, "[]"),
+
+            Term::Cons(_, _) => {
+                if let Some(elements) = self.collect_list() {
+                    write!(f, "[")?;
+
+                    for (i, elem) in elements.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", elem)?;
+                    }
+
+                    write!(f, "]")
+                } else {
+                    // fallback (improper list)
+                    if let Term::Cons(h, t) = self {
+                        write!(f, "Cons({}, {})", h, t)
+                    } else {
+                        unreachable!()
+                    }
                 }
             }
         }
