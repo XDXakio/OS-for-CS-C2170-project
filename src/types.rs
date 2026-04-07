@@ -224,6 +224,39 @@ pub fn type_of(term: &Term, ctx: &mut Context) -> Result<Type, TypeError> {
                 other => Err(ExpectedFunction { found: other, context: "list tail must be list" }),
             }
         }
+
+        Term::Head(t) => {
+            match type_of(t, ctx)? {
+                Type::List(inner) => Ok(*inner),
+                other => Err(TypeError::Mismatch {
+                    expected: Type::List(Box::new(Type::Nat)), // placeholder
+                    found: other,
+                    context: "head",
+                }),
+            }
+        }
+
+        Term::Tail(t) => {
+            match type_of(t, ctx)? {
+                Type::List(inner) => Ok(Type::List(inner)),
+                other => Err(TypeError::Mismatch {
+                    expected: Type::List(Box::new(Type::Nat)),
+                    found: other,
+                    context: "tail",
+                }),
+            }
+        }
+
+        Term::IsEmpty(t) => {
+            match type_of(t, ctx)? {
+                Type::List(_) => Ok(Type::Bool),
+                other => Err(TypeError::Mismatch {
+                    expected: Type::List(Box::new(Type::Nat)),
+                    found: other,
+                    context: "is_empty",
+                }),
+            }
+        }
     }
 }
 
