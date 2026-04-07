@@ -211,17 +211,9 @@ impl Term {
                 Zero => Some(*if_zero.clone()),
                 Succ(n) => Some(App(
                     Box::new(App(if_succ.clone(), n.clone())),
-                    Box::new(Rec {
-                        scrutinee: n.clone(),
-                        if_zero: if_zero.clone(),
-                        if_succ: if_succ.clone(),
-                    }),
+                    Box::new(Rec { scrutinee: n, if_zero: if_zero.clone(), if_succ: if_succ.clone() }),
                 )),
-                _other => scrutinee.step().map(|step| Rec {
-                    scrutinee: Box::new(step),
-                    if_zero: if_zero.clone(),
-                    if_succ: if_succ.clone(),
-                }),
+                _ => None,
             }
         } else {
             None
@@ -231,16 +223,16 @@ impl Term {
     /// Does a beta-reduction step returning None if no reduction rule applies.
     /// Note: `AppAbs`, `Ite` and `Rec` and `App1` should come before the other rules.
     pub fn step(&self) -> Option<Self> {
-        self.arith()
+        self.app_abs()
+            .or_else(|| self.app1())
+            .or_else(|| self.app2())
             .or_else(|| self.ite())
+            .or_else(|| self.ite1())
             .or_else(|| self.rec())
             .or_else(|| self.fst())
             .or_else(|| self.snd())
-            .or_else(|| self.app_abs())
-            .or_else(|| self.app1())
-            .or_else(|| self.ite1())
+            .or_else(|| self.arith())
             .or_else(|| self.succ1())
-            .or_else(|| self.app2())
             .or_else(|| self.abs())
     }
 
