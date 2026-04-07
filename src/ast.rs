@@ -56,6 +56,9 @@ pub enum AST {
     Nil,
     Cons(Box<AST>, Box<AST>),
     List(Vec<AST>),
+    Head(Box<AST>),
+    Tail(Box<AST>),
+    IsEmpty(Box<AST>),
 }
 
 use AST::*;
@@ -392,6 +395,10 @@ impl AST {
                     Term::Cons(Box::new(head_term), Box::new(tail))
                 })
             }
+
+            Head(t) => Term::Head(Box::new(d(*t))),
+            Tail(t) => Term::Tail(Box::new(d(*t))),
+            IsEmpty(t) => Term::IsEmpty(Box::new(d(*t))),
         }
     }
 }
