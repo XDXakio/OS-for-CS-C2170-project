@@ -65,6 +65,7 @@ impl Module {
         let prelude_asts = [
             ("succ", succ()),
             ("rec", rec()),
+            ("zero", ast::zero()),
             ("pred", ast::pred()),
             ("is_zero", ast::is_zero()),
             ("and", ast::and()),
