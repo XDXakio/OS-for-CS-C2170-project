@@ -77,6 +77,9 @@ impl Module {
             ("le", ast::le()),
             ("gt", ast::gt()),
             ("ge", ast::ge()),
+            ("add", ast::add()),
+            ("sub", ast::sub()),
+            ("mul", ast::mul()),
         ];
         
         // Convert ALL to Term ONCE at startup (safe, empty module)
