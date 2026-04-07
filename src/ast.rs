@@ -424,17 +424,22 @@ impl AST {
                 if elements.is_empty() {
                     Term::Nil(None) // or could attach a type if annotated
                 } else {
-                    // Infer type from the first element
-                    let first_type = crate::types::type_of(&elements[0].clone().desugar(env), &mut crate::types::empty_ctx()).ok();
+                    if elements.len() == 1 {
+                        let head_term = elements[0].clone().desugar(env);
+                        Term::Cons(Box::new(head_term), Box::new(Term::Nil(Some(Type::Nat))))
+                    } else {
+                        // Infer type from the first element
+                        let first_type = crate::types::type_of(&elements[0].clone().desugar(env), &mut crate::types::empty_ctx()).ok();
 
-                    // Build the list from first to last
-                    elements.iter().rev().fold(
-                        Term::Nil(first_type.clone()), // attach inferred type to Nil
-                        |tail, head| {
-                            let head_term = head.clone().desugar(env);
-                            Term::Cons(Box::new(head_term), Box::new(tail))
-                        },
-                    )
+                        // Build the list from first to last
+                        elements.iter().rev().fold(
+                            Term::Nil(first_type.clone()), // attach inferred type to Nil
+                            |tail, head| {
+                                let head_term = head.clone().desugar(env);
+                                Term::Cons(Box::new(head_term), Box::new(tail))
+                            },
+                        )
+                    }
                 }
             }
 
