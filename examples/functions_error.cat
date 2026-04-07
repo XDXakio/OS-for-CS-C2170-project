@@ -1,0 +1,2 @@
+f = x: Nat => succ x
+f true

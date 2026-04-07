@@ -44,6 +44,7 @@ pub enum AST {
     Add(Box<AST>, Box<AST>),
     Sub(Box<AST>, Box<AST>),
     Mul(Box<AST>, Box<AST>),
+    Div(Box<AST>, Box<AST>),
     Eq(Box<AST>, Box<AST>),
     Neq(Box<AST>, Box<AST>),
     Le(Box<AST>, Box<AST>),
@@ -195,6 +196,21 @@ pub fn mul() -> AST {
             var: "y".to_string(),
             ty: Type::Nat,
             body: Box::new(Mul(Box::new(Var("x".to_string())), Box::new(Var("y".to_string())))),
+        }),
+    }
+}
+
+pub fn div() -> AST {
+    AST::Abs {
+        var: "x".to_string(),
+        ty: Type::Nat,
+        body: Box::new(AST::Abs {
+            var: "y".to_string(),
+            ty: Type::Nat,
+            body: Box::new(AST::Div(
+                Box::new(AST::Var("x".to_string())),
+                Box::new(AST::Var("y".to_string())),
+            )),
         }),
     }
 }
@@ -370,6 +386,7 @@ impl AST {
             Add(t1, t2) => Term::Add(Box::new(d(*t1)), Box::new(d(*t2))),
             Sub(t1, t2) => Term::Sub(Box::new(d(*t1)), Box::new(d(*t2))),
             Mul(t1, t2) => Term::Mul(Box::new(d(*t1)), Box::new(d(*t2))),
+            Div(t1, t2) => Term::Div(Box::new(d(*t1)), Box::new(d(*t2))),
             Eq(t1, t2) => {
                 let f = env.get_term("eq").expect("eq in env");
                 app2(f, d(*t1), d(*t2))

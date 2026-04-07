@@ -32,6 +32,7 @@ impl Term {
             Add(a, b) => Add(a.clone(), b.clone()),
             Sub(a, b) => Sub(a.clone(), b.clone()),
             Mul(a, b) => Mul(a.clone(), b.clone()),
+            Div(a, b) => Div(a.clone(), b.clone()),
             Succ(t1) => Succ(t1.clone()),
             Rec { scrutinee, if_zero, if_succ } => Rec {
                 scrutinee: scrutinee.clone(),
@@ -300,19 +301,28 @@ impl Term {
         if let Rec { scrutinee, if_zero, if_succ } = self {
             let scrutinee_whnf = Term::whnf(scrutinee);
 
+            /*println!("--- Rec step ---");
+            println!("Scrutinee: {:?}", scrutinee_whnf);
+            println!("IfZero: {:?}", if_zero);
+            println!("IfSucc: {:?}", if_succ);*/
+
             match scrutinee_whnf {
-                Zero => Some(*if_zero.clone()),
+                Zero => {
+                    //println!("Matched Zero → returning if_zero");
+                    Some(*if_zero.clone())
+                }
 
                 Succ(ref n) => {
-                    // Fully evaluate the recursive call on the predecessor
+                    //println!("Matched Succ(n) → evaluating recursive call on n");
                     let rec_n = Term::Rec {
                         scrutinee: n.clone(),
                         if_zero: if_zero.clone(),
                         if_succ: if_succ.clone(),
                     }
-                    .multistep(); // evaluate Rec n e0 es
+                    .multistep(); // fully evaluate recursive call
 
-                    // Apply if_succ to n (predecessor) and the result of recursion
+                    //println!("Rec(n) result: {:?}", rec_n);
+
                     Some(App(
                         Box::new(App(if_succ.clone(), n.clone())), // first arg = n
                         Box::new(rec_n),                            // second arg = rec n e0 es
@@ -320,7 +330,7 @@ impl Term {
                 }
 
                 _ => {
-                    // Step inside scrutinee if it's not Zero or Succ
+                    //println!("Scrutinee not ready → stepping inside scrutinee");
                     scrutinee.step().map(|s| Rec {
                         scrutinee: Box::new(s),
                         if_zero: if_zero.clone(),

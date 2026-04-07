@@ -30,10 +30,7 @@ fn rec() -> AST {
                 body: Box::new(Rec {
                     scrutinee: Box::new(Var("n".to_string())),
                     if_zero: Box::new(Var("z".to_string())),
-                    if_succ: Box::new(App(
-                        Box::new(Var("s".to_string())),
-                        Box::new(Var("z".to_string())),
-                    )),
+                    if_succ: Box::new(Var("s".to_string())), // <- pass the function itself
                 }),
             }),
         }),
@@ -41,10 +38,6 @@ fn rec() -> AST {
 }
 
 impl Module {
-    pub fn get_term_ast(&self, name: &str) -> Option<&AST> {
-        self.asts.iter().rfind(|(n, _)| n == name).map(|(_, ast)| ast)
-    }
-
     pub fn new() -> Self {
         Self::default()
     }
@@ -77,6 +70,7 @@ impl Module {
             ("le", ast::le()),
             ("gt", ast::gt()),
             ("ge", ast::ge()),
+            ("div", ast::div()),
             ("add", ast::add()),
             ("sub", ast::sub()),
             ("mul", ast::mul()),
@@ -96,7 +90,7 @@ impl Module {
         self.asts.iter().rfind(|(n, _ast)| n == name).is_some()
     }
 
-    pub fn get(&self, name: &str) -> Option<&AST> {
+    pub fn get_ast(&self, name: &str) -> Option<&AST> {
         self.asts
             .iter()
             .rfind(|(n, _ast)| n == name)
@@ -107,7 +101,7 @@ impl Module {
         self.terms.get(name)
             .cloned()
             .or_else(|| {
-                self.get(name)
+                self.get_ast(name)
                     .map(|ast| ast.clone().desugar(self))
             })
     }

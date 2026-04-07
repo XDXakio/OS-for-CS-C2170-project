@@ -125,6 +125,7 @@ impl Display for Term {
             Add(a, b) => write!(f, "{a} + {b}"),
             Sub(a, b) => write!(f, "{a} - {b}"),
             Mul(a, b) => write!(f, "{a} * {b}"),
+            Div(a, b) => write!(f, "{} / {}", a, b),
             Pair(t1, t2) => write!(f, "({t1}, {t2})"),
 
             Fst(t) => {

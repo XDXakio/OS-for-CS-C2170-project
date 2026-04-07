@@ -46,7 +46,7 @@ fn test_module_declarations() {
     let (_, module) = parse_module(input).expect("Failed to parse module");
 
     // Get the AST for 'b' and desugar into a Term
-    let ast_b = module.get_term_ast("b").expect("Module should contain 'b'");
+    let ast_b = module.get_ast("b").expect("Module should contain 'b'");
     let term_b = ast_b.clone().desugar(&module);
 
     // Evaluate the term fully

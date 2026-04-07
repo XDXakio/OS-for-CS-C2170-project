@@ -4,7 +4,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::character::complete::{digit1, line_ending, space0};
 
-use nom::combinator::eof;
+
 use nom::combinator::map;
 use nom::combinator::{fail, map_res, opt, value};
 use nom::error::{Error, ErrorKind};
@@ -33,7 +33,7 @@ pub fn parse_variable_name(input: &str) -> IResult<&str, &str> {
 pub fn is_reserved(name: &str) -> bool {
     matches!(
         name,
-        "fun" | "if" | "then" | "else" | "true" | "false" | "and" | "or" | "not" | "S" | "Z" | "fst" | "snd" | "head" | "tail" | "is_empty"
+        "fun" | "if" | "then" | "else" | "true" | "false" | "S" | "Z" | "fst" | "snd" | "head" | "tail" | "is_empty"
     )
 }
 
@@ -97,9 +97,9 @@ pub fn parse_ite<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str,
 
 /// Parses left-associative application chains.
 pub fn parse_app<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
-    println!("parse_app DEBUG input='{}'", input.trim());
+    //println!("parse_app DEBUG input='{}'", input.trim());
     let (rest, t1) = parse_atom(module, input)?;
-    println!("  parse_app first atom OK, fold_many0 on '{}'", rest.trim());
+    //println!("  parse_app first atom OK, fold_many0 on '{}'", rest.trim());
 
     let atom_parser = move |i| parse_atom(module, i);
     fold_many0(
@@ -166,14 +166,14 @@ pub fn parse_lambda<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i s
 
 /// Parses a parenthesized expression.
 pub fn parse_paren<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, AST> {
-    println!("parse_paren DEBUG input='{}'", input.trim());
+    //println!("parse_paren DEBUG input='{}'", input.trim());
 
     // Consume '('
     let (input, _) = lex(tag("(")).parse(input)?;
 
     // Parse **single AST**, not full application
     let (input, first_expr) = parse_ast(module, input)?;
-    println!("  parse_paren first_expr parsed, remaining='{}'", input.trim());
+    //println!("  parse_paren first_expr parsed, remaining='{}'", input.trim());
 
     // Optionally parse a comma for pairs
     let (input, maybe_second) =
@@ -181,7 +181,7 @@ pub fn parse_paren<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i st
 
     // Consume ')'
     let (input, _) = lex(tag(")")).parse(input)?;
-    println!("parse_paren SUCCESS, remaining='{}'", input.trim());
+    //println!("parse_paren SUCCESS, remaining='{}'", input.trim());
 
     if let Some(second_expr) = maybe_second {
         Ok((input, AST::Pair(Box::new(first_expr), Box::new(second_expr))))
@@ -224,7 +224,7 @@ pub fn parse_list<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str
     .parse(input)?;
 
     if elems.is_empty() {
-        println!("List is empty");
+        //println!("List is empty");
         match ty_opt {
             Some(ty) => Ok((input, AST::TypedNil(ty))),
             None => Ok((input, AST::Nil)),
@@ -286,6 +286,7 @@ pub fn parse_ast<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str,
         fail(),
         alt((
             binary_op(2, Assoc::Left, lex(tag("*"))),
+            binary_op(2, Assoc::Left, lex(tag("/"))),
             binary_op(3, Assoc::Left, lex(tag("+"))),
             binary_op(3, Assoc::Left, lex(tag("-"))),
             binary_op(4, Assoc::Left, lex(tag("=="))),
@@ -303,6 +304,7 @@ pub fn parse_ast<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str,
             match op {
                 Prefix("not", o) => Ok(Not(Box::new(o))),
                 Binary(lhs, "*", rhs) => Ok(Mul(Box::new(lhs), Box::new(rhs))),
+                Binary(lhs, "/", rhs) => Ok(Div(Box::new(lhs), Box::new(rhs))),
                 Binary(lhs, "+", rhs) => Ok(Add(Box::new(lhs), Box::new(rhs))),
                 Binary(lhs, "-", rhs) => Ok(Sub(Box::new(lhs), Box::new(rhs))),
                 Binary(lhs, "==", rhs) => Ok(Eq(Box::new(lhs), Box::new(rhs))),
@@ -321,11 +323,23 @@ pub fn parse_ast<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str,
 
 /// Parses a single module declaration: `name = expr`.
 pub fn parse_decl<'m, 'i>(module: &'m Module, input: &'i str) -> IResult<&'i str, (String, AST)> {
-    let (rest, name) = parse_variable_name.parse(input)?;
+    // optional 'let'
+    let (rest, _) = opt(lex(tag("let"))).parse(input)?;
+
+    // parse variable name
+    let (rest, name) = parse_variable_name.parse(rest)?;
+
+    // reject reserved names
     if is_reserved(name) {
         return Err(nom::Err::Error(Error::new(input, ErrorKind::Tag)));
     }
-    let (rest, (_, ast)) = (lex(tag("=")), |i| parse_ast(module, i)).parse(rest)?;
+
+    // parse '=' with optional spaces
+    let (rest, _) = lex(tag("=")).parse(rest)?;
+
+    // parse expression
+    let (rest, ast) = parse_ast(module, rest)?;
+
     Ok((rest, (name.to_string(), ast)))
 }
 
@@ -346,10 +360,62 @@ pub fn parse_decl_line<'m, 'i>(
 /// Uses the module as state so earlier declarations can be referenced as names in the AST.
 pub fn parse_module(mut input: &str) -> IResult<&str, Module> {
     let mut module = Module::new_with_prelude();
-    while let Ok((rest, (name, decl))) = parse_decl_line(&module, input) {
-        module.insert(name, decl);
-        input = rest;
+
+    // Parse declarations until we can't
+    loop {
+        let trimmed = input.trim_start();
+        if trimmed.is_empty() {
+            input = trimmed;
+            break;
+        }
+
+        //println!("DEBUG: Trying decl on: {:?}", trimmed.trim());  // ← KEEP FOR DEBUG
+
+        // Try declaration FIRST
+        match parse_decl_line(&module, trimmed) {
+            Ok((rest, (name, decl))) => {
+                //println!("DEBUG: Parsed decl '{}' , rest='{:?}'", name, rest.trim());  // ← KEEP
+                module.insert(name, decl);
+                input = rest;
+                continue;
+            }
+            Err(_e) =>
+                //println!("DEBUG: Decl failed: {:?} on '{}'", e, trimmed.trim());  // ← KEEP
+                break,  // Exit loop on ANY parse error
+        }
     }
-    let (rest, _) = eof(input)?;
-    Ok((rest, module))
+
+    // Try final expression as "this" - STRIP QUOTES!
+    let trimmed = input.trim_start();
+    let unquoted = if let Some(stripped) = trimmed.strip_prefix('"') {
+        stripped.strip_suffix('"').unwrap_or(stripped)
+    } else {
+        trimmed
+    };
+    
+    //println!("DEBUG: Trying expr on: {:?}", unquoted.trim());  // ← KEEP FOR DEBUG
+
+    if !unquoted.trim().is_empty() {
+        match parse_app(&module, unquoted) {
+            Ok((rest, expr)) => {
+                //println!("DEBUG: Parsed expr as 'this', rest='{:?}'", rest.trim());  // ← KEEP
+                module.insert("this".to_string(), expr);
+                input = rest;
+            }
+            Err(e) => {
+                println!("DEBUG: Expr failed: {:?} on '{}'", e, unquoted.trim());  // ← KEEP
+                // Don't return error - single declaration files are valid
+            }
+        }
+    }
+
+    //println!("DEBUG: Final input before eof: {:?}", input.trim());  // ← KEEP
+
+    // Don't require strict eof - allow trailing whitespace
+    let input = input.trim_end();
+    if !input.is_empty() {
+        //println!("DEBUG: Warning - trailing content: {:?}", input);
+    }
+
+    Ok((input, module))
 }

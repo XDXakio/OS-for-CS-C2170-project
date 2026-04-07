@@ -39,6 +39,7 @@ pub enum Term {
     Add(Box<Term>, Box<Term>),
     Sub(Box<Term>, Box<Term>),
     Mul(Box<Term>, Box<Term>),
+    Div(Box<Term>, Box<Term>),
     Pair(Box<Term>, Box<Term>),
     Fst(Box<Term>),
     Snd(Box<Term>),
@@ -121,6 +122,7 @@ impl Term {
                 | Term::Add(_, _)
                 | Term::Sub(_, _)
                 | Term::Mul(_, _)
+                | Term::Div(_, _)
                 | Term::Nil(_) => {}
 
                 Term::Head(t) => go(t, out),
@@ -149,7 +151,7 @@ impl Term {
             Rec { scrutinee, if_zero, if_succ } => {
                 scrutinee.rename(var, new); if_zero.rename(var, new); if_succ.rename(var, new);
             }
-            True | False | Zero | Add(_, _) | Sub(_ , _) | Mul(_ , _) => {}
+            True | False | Zero | Add(_, _) | Sub(_ , _) | Mul(_ , _) | Div(_ , _) => {}
             Pair(l, r) => {
                 l.rename(var, new);
                 r.rename(var, new);
@@ -224,6 +226,11 @@ impl Term {
                 Box::new(b.subst(var, value))
             ),
 
+            Div(a, b) => Div(
+                Box::new(a.subst(var, value)),
+                Box::new(b.subst(var, value))
+            ),
+
             Pair(t1, t2) => Pair(
                 Box::new(t1.subst(var, value)),
                 Box::new(t2.subst(var, value)),
@@ -285,6 +292,33 @@ impl Term {
                     },
                     _ => None,
                 }
+            }
+            Term::Div(t1, t2) => {
+                let a = Term::whnf(t1).multistep();
+                let b = Term::whnf(t2).multistep();
+
+                match b {
+                    Zero => return Some(Zero), // division by zero
+                    _ => {}
+                }
+
+                fn div_rec(n: Term, m: Term) -> Term {
+                    match n {
+                        Zero => Zero,
+                        Succ(pred) => {
+                            // pred is Box<Term>
+                            let sub = Term::Sub(Box::new(Succ(pred.clone())), Box::new(m.clone())).multistep();
+                            match sub {
+                                Zero => Succ(Box::new(Zero)), // exactly one division
+                                Succ(_) => Succ(Box::new(div_rec(sub, m.clone()))),
+                                other => div_rec(other, m.clone()), // fallback
+                            }
+                        }
+                        other => other, // if not Zero or Succ, return as-is
+                    }
+                }
+
+                Some(div_rec(a, b))
             }
 
             _  => None,
